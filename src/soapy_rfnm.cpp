@@ -232,6 +232,7 @@ std::vector<std::string> SoapyRFNM::getStreamFormats(const int direction, const 
     formats.push_back(SOAPY_SDR_CS16);
     formats.push_back(SOAPY_SDR_CF32);
     formats.push_back(SOAPY_SDR_CS8);
+    formats.push_back(SOAPY_SDR_S16);
     return formats;
 }
 
@@ -286,13 +287,14 @@ int SoapyRFNM::activateStream(SoapySDR::Stream* stream, const int flags, const l
         if (lrfnm->s->rx.ch[channel].enable != RFNM_CH_ON) {
             continue;
         }
-
+        spdlog::info("Activating channel {} {}", channel, dc_correction[channel]);
         // First sample can sometimes take a while to come, so fetch it here before normal streaming
         // This first chunk is also useful for initial calibration
         struct librfnm_rx_buf* lrxbuf;
         if (lrfnm->rx_dqbuf(&lrxbuf, librfnm_rx_chan_flags[channel], 250)) {
             throw std::runtime_error("timeout activating stream");
         }
+        spdlog::info("First chunk received for channel {}", channel);
 
         last_phytimer[channel] = lrxbuf->phytimer;
 
@@ -346,7 +348,7 @@ int SoapyRFNM::activateStream(SoapySDR::Stream* stream, const int flags, const l
             }
         }
     }
-
+    spdlog::info("First chunk processed");
     return 0;
 }
 
@@ -552,8 +554,12 @@ SoapySDR::Stream* SoapyRFNM::setupStream(const int direction, const std::string&
         stream_format = LIBRFNM_STREAM_FORMAT_CF32;
     } else if (!format.compare(SOAPY_SDR_CS16)) {
         stream_format = LIBRFNM_STREAM_FORMAT_CS16;
-    } else if (!format.compare(SOAPY_SDR_CS8)) {
+    }
+    else if (!format.compare(SOAPY_SDR_CS8)) {
         stream_format = LIBRFNM_STREAM_FORMAT_CS8;
+    }
+	else if (!format.compare(SOAPY_SDR_S16)) {
+		stream_format = LIBRFNM_STREAM_FORMAT_S16;
     } else {
         throw std::runtime_error("setupStream invalid format " + format);
     }
@@ -632,6 +638,11 @@ int SoapyRFNM::readStream(SoapySDR::Stream* stream, void* const* buffs, const si
     uint64_t first_sample;
     size_t first_chan = SIZE_MAX;
 
+    if (lrfnm->s->transport_status.rx_stream_format == LIBRFNM_STREAM_FORMAT_S16) {
+		bytes_per_ele = 2;
+	}
+
+    //spdlog::info("readStream() -> Reading {} elements", numElems);
     for (size_t channel = 0; channel < MAX_RX_CHAN_COUNT; channel++) {
         if (lrfnm->s->rx.ch[channel].enable != RFNM_CH_ON) {
             continue;
@@ -669,7 +680,7 @@ int SoapyRFNM::readStream(SoapySDR::Stream* stream, void* const* buffs, const si
 
         buf_idx++;
     }
-
+    //spdlog::info("readStream() -> Read {} elements {}", read_elems[0], need_more_data);
     while (need_more_data) {
         uint32_t wait_ms = 0;
         auto time_remaining = timeout - std::chrono::system_clock::now();

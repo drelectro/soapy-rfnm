@@ -132,4 +132,8 @@ private:
     struct rfnm_soapy_partial_buf partial_rx_buf[MAX_RX_CHAN_COUNT] = {};
 
     struct librfnm_rx_buf * pending_rx_buf[MAX_RX_CHAN_COUNT] = {};
+
+    int ts_OK;
+    int ts_NOK;
+    int ts_NOK2;
 };
