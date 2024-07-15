@@ -287,7 +287,7 @@ int SoapyRFNM::activateStream(SoapySDR::Stream* stream, const int flags, const l
         if (lrfnm->s->rx.ch[channel].enable != RFNM_CH_ON) {
             continue;
         }
-        spdlog::info("Activating channel {} {}", channel, dc_correction[channel]);
+
         // First sample can sometimes take a while to come, so fetch it here before normal streaming
         // This first chunk is also useful for initial calibration
         struct librfnm_rx_buf* lrxbuf;
@@ -348,7 +348,7 @@ int SoapyRFNM::activateStream(SoapySDR::Stream* stream, const int flags, const l
             }
         }
     }
-    spdlog::info("First chunk processed");
+
     return 0;
 }
 
@@ -680,7 +680,7 @@ int SoapyRFNM::readStream(SoapySDR::Stream* stream, void* const* buffs, const si
 
         buf_idx++;
     }
-    //spdlog::info("readStream() -> Read {} elements {}", read_elems[0], need_more_data);
+
     while (need_more_data) {
         uint32_t wait_ms = 0;
         auto time_remaining = timeout - std::chrono::system_clock::now();
